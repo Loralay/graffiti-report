@@ -25,6 +25,12 @@ const initialDemoScreen = ["home", "create", "reports", "summary", "profile"].in
 let nickname = demoMode ? "StudentDemo" : "";
 let currentScreen = demoMode ? initialDemoScreen : "login";
 let selectedReportId = "1";
+let reportFilters = {
+  status: "all",
+  type: "all",
+  query: "",
+  sort: "newest"
+};
 
 const palermoBounds = {
   north: 38.151,
@@ -56,6 +62,7 @@ let reports = [
     createdAt: "2026-05-04T09:20:00.000Z",
     createdByNickname: "SunnyPalermo",
     votes: 8,
+    priority: "medium",
     comments: [
       {
         id: "c1",
@@ -78,6 +85,7 @@ let reports = [
     createdAt: "2026-05-03T15:40:00.000Z",
     createdByNickname: "SeaWalk",
     votes: 13,
+    priority: "high",
     comments: [],
     status: "open"
   },
@@ -93,6 +101,7 @@ let reports = [
     createdAt: "2026-05-02T12:15:00.000Z",
     createdByNickname: "QuietStreet",
     votes: 6,
+    priority: "medium",
     comments: [
       {
         id: "c2",
@@ -115,11 +124,21 @@ let reports = [
     createdAt: "2026-05-01T18:30:00.000Z",
     createdByNickname: "CityWalker",
     votes: 10,
+    priority: "low",
     comments: [],
     status: "resolved",
     resolvedPhotoUri: resolvedPhoto
   }
 ];
+
+const storedReports = localStorage.getItem("graffitiReportReports");
+if (storedReports) {
+  try {
+    reports = JSON.parse(storedReports);
+  } catch {
+    localStorage.removeItem("graffitiReportReports");
+  }
+}
 
 const screen = document.querySelector("#screen");
 const tabs = document.querySelector("#tabs");
@@ -135,6 +154,10 @@ function applyPrivacyBlur(photoUri) {
 function go(nextScreen) {
   currentScreen = nextScreen;
   render();
+}
+
+function saveReports() {
+  localStorage.setItem("graffitiReportReports", JSON.stringify(reports));
 }
 
 function openReport(reportId) {
@@ -157,6 +180,10 @@ function formatDateTime(value) {
 
 function badge(status) {
   return `<span class="badge ${status === "resolved" ? "resolved" : ""}">${status}</span>`;
+}
+
+function priorityBadge(priority = "medium") {
+  return `<span class="priority priority-${priority}">${priority} priority</span>`;
 }
 
 function seededNumber(seed) {
@@ -214,6 +241,41 @@ function getUserVotes() {
   return getUserReports().reduce((total, report) => total + report.votes, 0);
 }
 
+function filteredReports() {
+  const query = reportFilters.query.trim().toLowerCase();
+
+  return reports
+    .filter((report) => {
+      const matchesStatus =
+        reportFilters.status === "all" || report.status === reportFilters.status;
+      const matchesType =
+        reportFilters.type === "all" || report.problemType === reportFilters.type;
+      const matchesQuery =
+        !query ||
+        report.description.toLowerCase().includes(query) ||
+        report.areaName.toLowerCase().includes(query) ||
+        readableProblemType(report.problemType).toLowerCase().includes(query);
+
+      return matchesStatus && matchesType && matchesQuery;
+    })
+    .sort((a, b) => {
+      if (reportFilters.sort === "votes") {
+        return b.votes - a.votes;
+      }
+      if (reportFilters.sort === "priority") {
+        const weights = { high: 3, medium: 2, low: 1 };
+        return (weights[b.priority] ?? 2) - (weights[a.priority] ?? 2);
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+}
+
+function latestActivity() {
+  return [...reports]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 3);
+}
+
 function reportCard(report) {
   const latestComment = report.comments.at(-1);
 
@@ -225,6 +287,7 @@ function reportCard(report) {
           <strong>${readableProblemType(report.problemType)}</strong>
           ${badge(report.status)}
         </div>
+        ${priorityBadge(report.priority)}
         <p>${report.description}</p>
         <span class="meta">${report.areaName} · ${formatDateTime(report.createdAt)}</span>
         <span class="meta">Votes: ${report.votes} · Comments: ${report.comments.length}</span>
@@ -268,6 +331,7 @@ function renderLogin() {
 function renderHome() {
   const open = reports.filter((report) => report.status === "open").length;
   const resolved = reports.filter((report) => report.status === "resolved").length;
+  const highPriority = reports.filter((report) => report.priority === "high").length;
 
   screen.innerHTML = `
     <div class="stack">
@@ -281,7 +345,28 @@ function renderHome() {
         <div class="stat"><strong>${open}</strong><span>Open</span></div>
         <div class="stat"><strong>${resolved}</strong><span>Resolved</span></div>
       </div>
-      <button class="primary" onclick="go('create')">Create a report</button>
+      <div class="action-grid">
+        <button class="primary" onclick="go('create')">Create a report</button>
+        <button class="secondary" onclick="go('reports')">Open map</button>
+      </div>
+      <section class="summary-box">
+        <label>Today’s attention</label>
+        <p>${highPriority} high-priority issue${highPriority === 1 ? "" : "s"} need review.</p>
+      </section>
+      <h3>Activity feed</h3>
+      <div class="activity-list">
+        ${latestActivity()
+          .map(
+            (report) => `
+          <button class="activity-item" onclick="openReport('${report.id}')">
+            <span>${readableProblemType(report.problemType)}</span>
+            <strong>${report.areaName}</strong>
+            <small>${report.status} · ${report.votes} votes</small>
+          </button>
+        `
+          )
+          .join("")}
+      </div>
       <h3>Latest reports</h3>
       ${reports.slice(0, 3).map(reportCard).join("")}
     </div>
@@ -306,11 +391,20 @@ function renderCreate() {
       </select>
       <label for="description">Short description</label>
       <textarea id="description" placeholder="What can people see here?"></textarea>
+      <label for="priority">Priority</label>
+      <select id="priority">
+        <option value="low">Low</option>
+        <option value="medium" selected>Medium</option>
+        <option value="high">High</option>
+      </select>
+      <button class="secondary" type="button" id="locationButton">Use Palermo geolocator</button>
+      <p id="locationPreview" class="success"></p>
       <button class="primary" type="submit">Submit report</button>
     </form>
   `;
 
   let photoUri = mockPhotos[0];
+  let selectedLocation = null;
   document.querySelectorAll("[data-photo]").forEach((button) => {
     button.addEventListener("click", () => {
       const result = applyPrivacyBlur(mockPhotos[Number(button.dataset.photo)]);
@@ -320,14 +414,23 @@ function renderCreate() {
     });
   });
 
+  document.querySelector("#locationButton").addEventListener("click", () => {
+    selectedLocation = randomPalermoLocation(`manual-${Date.now()}`);
+    document.querySelector(
+      "#locationPreview"
+    ).textContent = `Location selected: ${selectedLocation.areaName}`;
+  });
+
   document.querySelector("#reportForm").addEventListener("submit", (event) => {
     event.preventDefault();
     const now = new Date();
-    const location = randomPalermoLocation(`${now.getTime()}-${problemType}`);
+    const problemType = document.querySelector("#problemType").value;
+    const priority = document.querySelector("#priority").value;
+    const location = selectedLocation ?? randomPalermoLocation(`${now.getTime()}-${problemType}`);
     const report = {
       id: String(now.getTime()),
       city: "Palermo",
-      problemType: document.querySelector("#problemType").value,
+      problemType,
       description:
         document.querySelector("#description").value.trim() || "No description added.",
       photoUri,
@@ -337,15 +440,19 @@ function renderCreate() {
       createdAt: now.toISOString(),
       createdByNickname: nickname,
       votes: 1,
+      priority,
       comments: [],
       status: "open"
     };
     reports = [report, ...reports];
+    saveReports();
     openReport(report.id);
   });
 }
 
 function renderReports() {
+  const visibleReports = filteredReports();
+
   screen.innerHTML = `
     <div class="stack">
       <section class="hero-panel compact">
@@ -353,14 +460,43 @@ function renderReports() {
         <h2>Palermo reports</h2>
         <p>Reports are placed around real Palermo coordinates on an OpenStreetMap view.</p>
       </section>
+      <section class="filter-panel">
+        <input id="reportSearch" placeholder="Search area, type, or description" value="${reportFilters.query}" />
+        <div class="chip-row">
+          ${["all", "open", "resolved"]
+            .map(
+              (status) => `
+            <button class="filter-chip ${reportFilters.status === status ? "active" : ""}"
+              onclick="setStatusFilter('${status}')">${status}</button>
+          `
+            )
+            .join("")}
+        </div>
+        <div class="row">
+          <select id="typeFilter">
+            <option value="all">All problem types</option>
+            ${problemTypes
+              .map(
+                ([value, label]) =>
+                  `<option value="${value}" ${reportFilters.type === value ? "selected" : ""}>${label}</option>`
+              )
+              .join("")}
+          </select>
+          <select id="sortFilter">
+            <option value="newest" ${reportFilters.sort === "newest" ? "selected" : ""}>Newest</option>
+            <option value="votes" ${reportFilters.sort === "votes" ? "selected" : ""}>Most votes</option>
+            <option value="priority" ${reportFilters.sort === "priority" ? "selected" : ""}>Priority</option>
+          </select>
+        </div>
+      </section>
       <div class="map real-map">
         <div class="map-tile-grid">${palermoMapTiles()}</div>
         <div class="map-shade"></div>
         <div class="map-label">
           <strong>Palermo geolocator</strong>
-          <span>${reports.length} randomized report markers</span>
+          <span>${visibleReports.length} visible report markers</span>
         </div>
-        ${reports
+        ${visibleReports
           .map(
             (report, index) => {
               const position = mapPosition(report);
@@ -376,9 +512,26 @@ function renderReports() {
           )
           .join("")}
       </div>
-      ${reports.map(reportCard).join("")}
+      ${
+        visibleReports.length
+          ? visibleReports.map(reportCard).join("")
+          : `<div class="empty-state">No reports match these filters.</div>`
+      }
     </div>
   `;
+
+  document.querySelector("#reportSearch").addEventListener("input", (event) => {
+    reportFilters.query = event.target.value;
+    renderReports();
+  });
+  document.querySelector("#typeFilter").addEventListener("change", (event) => {
+    reportFilters.type = event.target.value;
+    renderReports();
+  });
+  document.querySelector("#sortFilter").addEventListener("change", (event) => {
+    reportFilters.sort = event.target.value;
+    renderReports();
+  });
 }
 
 function renderDetail() {
@@ -389,6 +542,7 @@ function renderDetail() {
       <h2>${readableProblemType(report.problemType)}</h2>
       <img class="large-photo" src="${report.photoUri}" alt="Report photo" />
       ${badge(report.status)}
+      ${priorityBadge(report.priority)}
       <p>${report.description}</p>
       <p class="meta">${report.city} · ${report.areaName}</p>
       <p class="meta">Location: ${report.latitude.toFixed(4)}, ${report.longitude.toFixed(4)}</p>
@@ -532,6 +686,7 @@ function renderProfile() {
       <div class="summary-box">
         This profile is still mocked for the school demo, but it shows how a real account page could summarize activity.
       </div>
+      <button class="secondary" onclick="resetDemoData()">Reset demo data</button>
     </div>
   `;
 }
@@ -540,6 +695,7 @@ function vote() {
   reports = reports.map((report) =>
     report.id === selectedReportId ? { ...report, votes: report.votes + 1 } : report
   );
+  saveReports();
   renderDetail();
 }
 
@@ -565,6 +721,7 @@ function addComment() {
         }
       : report
   );
+  saveReports();
   renderDetail();
 }
 
@@ -574,7 +731,18 @@ function markResolved() {
       ? { ...report, status: "resolved", resolvedPhotoUri: resolvedPhoto }
       : report
   );
+  saveReports();
   go("resolved");
+}
+
+function setStatusFilter(status) {
+  reportFilters.status = status;
+  renderReports();
+}
+
+function resetDemoData() {
+  localStorage.removeItem("graffitiReportReports");
+  window.location.reload();
 }
 
 function mostCommon(values) {
@@ -621,5 +789,7 @@ window.openReport = openReport;
 window.vote = vote;
 window.addComment = addComment;
 window.markResolved = markResolved;
+window.setStatusFilter = setStatusFilter;
+window.resetDemoData = resetDemoData;
 
 render();

@@ -207,6 +207,12 @@ button:active {
   flex: 1;
 }
 
+.action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -320,6 +326,30 @@ button:active {
   color: #0b5d5e;
 }
 
+.priority {
+  width: max-content;
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.priority-low {
+  background: #edf5f2;
+  color: #52706c;
+}
+
+.priority-medium {
+  background: #fff1cf;
+  color: #765400;
+}
+
+.priority-high {
+  background: #ffe3df;
+  color: #a23225;
+}
+
 .meta {
   color: #6b817e;
   font-size: 13px;
@@ -328,6 +358,33 @@ button:active {
 .success {
   color: #0b6b54;
   font-weight: 800;
+}
+
+.activity-list {
+  display: grid;
+  gap: 8px;
+}
+
+.activity-item {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+  border: 1px solid rgba(188, 205, 200, 0.78);
+  background: rgba(255, 255, 255, 0.92);
+  color: #173635;
+  box-shadow: 0 10px 24px rgba(23, 54, 53, 0.06);
+}
+
+.activity-item span {
+  color: #0b5d5e;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.activity-item small {
+  color: #6b817e;
+  font-weight: 700;
 }
 
 .hero-panel {
@@ -363,6 +420,38 @@ button:active {
   overflow: hidden;
   isolation: isolate;
   box-shadow: 0 18px 42px rgba(23, 54, 53, 0.13);
+}
+
+.filter-panel {
+  border: 1px solid rgba(188, 205, 200, 0.78);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  box-shadow: 0 10px 24px rgba(23, 54, 53, 0.06);
+}
+
+.chip-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.filter-chip {
+  min-height: 38px;
+  border: 1px solid #b8cbc7;
+  background: #ffffff;
+  color: #52706c;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.filter-chip.active {
+  background: #dff1ec;
+  border-color: #0b5d5e;
+  color: #0b5d5e;
 }
 
 .real-map {
@@ -593,7 +682,8 @@ button:active {
   }
 
   .comment-form,
-  .profile-grid {
+  .profile-grid,
+  .action-grid {
     grid-template-columns: 1fr;
   }
 
