@@ -7,13 +7,12 @@ const problemTypes = [
 ];
 
 const mockPhotos = [
-  "https://images.unsplash.com/photo-1595815771614-ade9d652a65d?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1604187351574-c75ca79f5807?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1563132337-f159f484226c?auto=format&fit=crop&w=900&q=80"
+  "assets/demo-graffiti.svg",
+  "assets/demo-rubbish.svg",
+  "assets/demo-pothole.svg"
 ];
 
-const resolvedPhoto =
-  "https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=900&q=80";
+const resolvedPhoto = "assets/demo-resolved.svg";
 
 let nickname = "";
 let currentScreen = "login";
@@ -183,8 +182,8 @@ function renderCreate() {
       <img id="photoPreview" class="preview" src="${mockPhotos[0]}" alt="Selected report preview" />
       <div class="row">
         <button class="secondary" type="button" data-photo="0">Take photo</button>
-        <button class="secondary" type="button" data-photo="1">Select 2</button>
-        <button class="secondary" type="button" data-photo="2">Select 3</button>
+        <button class="secondary" type="button" data-photo="1">Rubbish photo</button>
+        <button class="secondary" type="button" data-photo="2">Pothole photo</button>
       </div>
       <p id="privacyMessage" class="success"></p>
       <label for="problemType">Problem type</label>

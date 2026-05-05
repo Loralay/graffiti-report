@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-labelledby="title desc">
+  <title id="title">School-friendly resolved report image</title>
+  <desc id="desc">A simple illustration of a repaired, clean city street with a resolved status sign.</desc>
+  <rect width="900" height="560" fill="#e9f5f0"/>
+  <rect y="350" width="900" height="210" fill="#8ea39e"/>
+  <rect x="80" y="115" width="740" height="250" rx="12" fill="#f1dfbf"/>
+  <g fill="#d3c09e">
+    <rect x="110" y="145" width="170" height="48" rx="5"/>
+    <rect x="300" y="145" width="160" height="48" rx="5"/>
+    <rect x="480" y="145" width="300" height="48" rx="5"/>
+    <rect x="130" y="220" width="220" height="44" rx="5"/>
+    <rect x="370" y="220" width="180" height="44" rx="5"/>
+    <rect x="570" y="220" width="190" height="44" rx="5"/>
+  </g>
+  <rect x="245" y="390" width="410" height="42" rx="21" fill="#61736f"/>
+  <circle cx="450" cy="250" r="76" fill="#dff1ec"/>
+  <path d="M410 250l28 29 57-66" fill="none" stroke="#0b8f71" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="340" y="68" width="220" height="56" rx="12" fill="#0b8f71"/>
+  <text x="450" y="105" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#ffffff">RESOLVED</text>
+  <text x="450" y="505" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#173635">Resolved issue photo</text>
+</svg>

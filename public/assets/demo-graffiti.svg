@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-labelledby="title desc">
+  <title id="title">School-friendly graffiti report image</title>
+  <desc id="desc">A simple illustration of a Palermo street wall with colorful graffiti and no people or car plates.</desc>
+  <rect width="900" height="560" fill="#e8f1ef"/>
+  <rect y="390" width="900" height="170" fill="#b7c9c5"/>
+  <rect x="70" y="90" width="760" height="315" rx="10" fill="#d7c9b0"/>
+  <g fill="#c7b89e">
+    <rect x="90" y="115" width="120" height="44" rx="4"/>
+    <rect x="230" y="115" width="155" height="44" rx="4"/>
+    <rect x="405" y="115" width="115" height="44" rx="4"/>
+    <rect x="540" y="115" width="250" height="44" rx="4"/>
+    <rect x="110" y="184" width="190" height="42" rx="4"/>
+    <rect x="320" y="184" width="135" height="42" rx="4"/>
+    <rect x="475" y="184" width="150" height="42" rx="4"/>
+    <rect x="645" y="184" width="145" height="42" rx="4"/>
+    <rect x="90" y="252" width="145" height="42" rx="4"/>
+    <rect x="255" y="252" width="205" height="42" rx="4"/>
+    <rect x="480" y="252" width="120" height="42" rx="4"/>
+    <rect x="620" y="252" width="170" height="42" rx="4"/>
+  </g>
+  <path d="M170 315c43-73 93-78 134-10 22-45 76-55 112-5 34-67 95-55 127 0 47-82 122-64 157 17" fill="none" stroke="#0b5d5e" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M200 323c34-34 72-34 107 0m216-4c43-40 92-40 137 0" fill="none" stroke="#f6c85f" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="730" cy="310" r="22" fill="#e34d3b"/>
+  <rect x="86" y="405" width="728" height="18" rx="9" fill="#879c98"/>
+  <text x="450" y="485" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#173635">Graffiti report photo</text>
+</svg>
