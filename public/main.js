@@ -14,10 +14,35 @@ const mockPhotos = [
 
 const resolvedPhoto = "assets/demo-resolved.svg";
 
-const demoMode = new URLSearchParams(window.location.search).has("demo");
+const urlParams = new URLSearchParams(window.location.search);
+const demoMode = urlParams.has("demo");
+const requestedScreen = urlParams.get("screen");
+const initialDemoScreen = ["home", "create", "reports", "summary", "profile"].includes(
+  requestedScreen
+)
+  ? requestedScreen
+  : "home";
 let nickname = demoMode ? "StudentDemo" : "";
-let currentScreen = demoMode ? "home" : "login";
+let currentScreen = demoMode ? initialDemoScreen : "login";
 let selectedReportId = "1";
+
+const palermoBounds = {
+  north: 38.151,
+  south: 38.082,
+  west: 13.292,
+  east: 13.432
+};
+
+const palermoAreas = [
+  { areaName: "Centro Storico", latitude: 38.1157, longitude: 13.3615 },
+  { areaName: "Kalsa", latitude: 38.1121, longitude: 13.3698 },
+  { areaName: "Politeama", latitude: 38.1257, longitude: 13.3563 },
+  { areaName: "Ballaro", latitude: 38.1113, longitude: 13.3607 },
+  { areaName: "Mondello Road", latitude: 38.1492, longitude: 13.3336 },
+  { areaName: "Oreto", latitude: 38.1037, longitude: 13.3649 },
+  { areaName: "Notarbartolo", latitude: 38.1366, longitude: 13.3427 }
+];
+
 let reports = [
   {
     id: "1",
@@ -27,7 +52,7 @@ let reports = [
     photoUri: mockPhotos[0],
     latitude: 38.1157,
     longitude: 13.3615,
-    areaName: "Central Palermo",
+    areaName: "Centro Storico",
     createdAt: "2026-05-04T09:20:00.000Z",
     createdByNickname: "SunnyPalermo",
     votes: 8,
@@ -47,14 +72,52 @@ let reports = [
     problemType: "rubbish",
     description: "Rubbish bags left beside a small square.",
     photoUri: mockPhotos[1],
-    latitude: 38.118,
-    longitude: 13.37,
-    areaName: "Central Palermo",
+    latitude: 38.1121,
+    longitude: 13.3698,
+    areaName: "Kalsa",
     createdAt: "2026-05-03T15:40:00.000Z",
     createdByNickname: "SeaWalk",
     votes: 13,
     comments: [],
     status: "open"
+  },
+  {
+    id: "3",
+    city: "Palermo",
+    problemType: "pothole",
+    description: "Small pothole on a side road near a school entrance.",
+    photoUri: mockPhotos[2],
+    latitude: 38.1366,
+    longitude: 13.3427,
+    areaName: "Notarbartolo",
+    createdAt: "2026-05-02T12:15:00.000Z",
+    createdByNickname: "QuietStreet",
+    votes: 6,
+    comments: [
+      {
+        id: "c2",
+        nickname: "BikePalermo",
+        text: "This is difficult for bikes.",
+        createdAt: "2026-05-02T16:05:00.000Z"
+      }
+    ],
+    status: "open"
+  },
+  {
+    id: "4",
+    city: "Palermo",
+    problemType: "broken_street_furniture",
+    description: "A bench needs repair near a busy walking route.",
+    photoUri: mockPhotos[0],
+    latitude: 38.1257,
+    longitude: 13.3563,
+    areaName: "Politeama",
+    createdAt: "2026-05-01T18:30:00.000Z",
+    createdByNickname: "CityWalker",
+    votes: 10,
+    comments: [],
+    status: "resolved",
+    resolvedPhotoUri: resolvedPhoto
   }
 ];
 
@@ -96,6 +159,53 @@ function badge(status) {
   return `<span class="badge ${status === "resolved" ? "resolved" : ""}">${status}</span>`;
 }
 
+function seededNumber(seed) {
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash << 5) - hash + seed.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(Math.sin(hash) * 10000) % 1;
+}
+
+function randomPalermoLocation(seed) {
+  const base = palermoAreas[Math.floor(seededNumber(seed) * palermoAreas.length)];
+  const latOffset = (seededNumber(`${seed}-lat`) - 0.5) * 0.009;
+  const lonOffset = (seededNumber(`${seed}-lon`) - 0.5) * 0.012;
+
+  return {
+    areaName: base.areaName,
+    latitude: Number((base.latitude + latOffset).toFixed(5)),
+    longitude: Number((base.longitude + lonOffset).toFixed(5))
+  };
+}
+
+function mapPosition(report) {
+  const left =
+    ((report.longitude - palermoBounds.west) /
+      (palermoBounds.east - palermoBounds.west)) *
+    100;
+  const top =
+    ((palermoBounds.north - report.latitude) /
+      (palermoBounds.north - palermoBounds.south)) *
+    100;
+
+  return {
+    left: Math.max(4, Math.min(92, left)),
+    top: Math.max(12, Math.min(86, top))
+  };
+}
+
+function palermoMapTiles() {
+  const tiles = [];
+  for (let y = 3155; y <= 3157; y += 1) {
+    for (let x = 4398; x <= 4401; x += 1) {
+      tiles.push(`<img src="https://tile.openstreetmap.org/13/${x}/${y}.png" alt="" />`);
+    }
+  }
+  return tiles.join("");
+}
+
 function getUserReports() {
   return reports.filter((report) => report.createdByNickname === nickname);
 }
@@ -108,7 +218,7 @@ function reportCard(report) {
   const latestComment = report.comments.at(-1);
 
   return `
-    <article class="card" onclick="openReport('${report.id}')">
+    <article class="card report-card" onclick="openReport('${report.id}')">
       <img src="${report.photoUri}" alt="${readableProblemType(report.problemType)} report photo" />
       <div class="card-body">
         <div class="top-line">
@@ -161,8 +271,11 @@ function renderHome() {
 
   screen.innerHTML = `
     <div class="stack">
-      <h2>Hi, ${nickname}</h2>
-      <p>Report visible public issues in Palermo and help show what needs attention.</p>
+      <section class="hero-panel">
+        <span class="eyebrow">Palermo civic prototype</span>
+        <h2>Hi, ${nickname}</h2>
+        <p>Report visible public issues, confirm what neighbors see, and track city improvements.</p>
+      </section>
       <div class="stats">
         <div class="stat"><strong>${reports.length}</strong><span>Reports</span></div>
         <div class="stat"><strong>${open}</strong><span>Open</span></div>
@@ -179,7 +292,7 @@ function renderCreate() {
   screen.innerHTML = `
     <form id="reportForm" class="stack">
       <h2>Create report</h2>
-      <p>Mock location: Central Palermo. Photo selection is simulated.</p>
+      <p>Photo selection is simulated. The location is randomized around Palermo for the demo.</p>
       <img id="photoPreview" class="preview" src="${mockPhotos[0]}" alt="Selected report preview" />
       <div class="row">
         <button class="secondary" type="button" data-photo="0">Take photo</button>
@@ -210,6 +323,7 @@ function renderCreate() {
   document.querySelector("#reportForm").addEventListener("submit", (event) => {
     event.preventDefault();
     const now = new Date();
+    const location = randomPalermoLocation(`${now.getTime()}-${problemType}`);
     const report = {
       id: String(now.getTime()),
       city: "Palermo",
@@ -217,9 +331,9 @@ function renderCreate() {
       description:
         document.querySelector("#description").value.trim() || "No description added.",
       photoUri,
-      latitude: 38.1157,
-      longitude: 13.3615,
-      areaName: "Central Palermo",
+      latitude: location.latitude,
+      longitude: location.longitude,
+      areaName: location.areaName,
       createdAt: now.toISOString(),
       createdByNickname: nickname,
       votes: 1,
@@ -234,17 +348,31 @@ function renderCreate() {
 function renderReports() {
   screen.innerHTML = `
     <div class="stack">
-      <h2>Palermo reports</h2>
-      <div class="map">
-        <strong>Simple demo map</strong>
-        <p>Markers are shown as report cards below.</p>
+      <section class="hero-panel compact">
+        <span class="eyebrow">Live geolocator demo</span>
+        <h2>Palermo reports</h2>
+        <p>Reports are placed around real Palermo coordinates on an OpenStreetMap view.</p>
+      </section>
+      <div class="map real-map">
+        <div class="map-tile-grid">${palermoMapTiles()}</div>
+        <div class="map-shade"></div>
+        <div class="map-label">
+          <strong>Palermo geolocator</strong>
+          <span>${reports.length} randomized report markers</span>
+        </div>
         ${reports
           .map(
-            (report, index) => `
+            (report, index) => {
+              const position = mapPosition(report);
+              return `
             <button class="marker ${report.status === "resolved" ? "resolved" : ""}"
-              style="left:${10 + (index * 23) % 70}%; top:${28 + (index * 17) % 54}%"
-              onclick="openReport('${report.id}')">${index + 1}</button>
-          `
+              title="${readableProblemType(report.problemType)} in ${report.areaName}"
+              style="left:${position.left}%; top:${position.top}%"
+              onclick="openReport('${report.id}')">
+              <span>${index + 1}</span>
+            </button>
+          `;
+            }
           )
           .join("")}
       </div>
