@@ -14,8 +14,9 @@ const mockPhotos = [
 
 const resolvedPhoto = "assets/demo-resolved.svg";
 
-let nickname = "";
-let currentScreen = "login";
+const demoMode = new URLSearchParams(window.location.search).has("demo");
+let nickname = demoMode ? "StudentDemo" : "";
+let currentScreen = demoMode ? "home" : "login";
 let selectedReportId = "1";
 let reports = [
   {
