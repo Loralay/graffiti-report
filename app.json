@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Graffiti Report",
+    "slug": "graffiti-report",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "graffiti-report",
+    "userInterfaceStyle": "light",
+    "platforms": ["ios", "android", "web"],
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    }
+  }
+}
