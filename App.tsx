@@ -18,7 +18,34 @@ type ProblemType =
   | "broken_street_furniture"
   | "other";
 
-type ReportStatus = "open" | "resolved";
+type ReportStatus = "scheduled" | "in_progress" | "resolved";
+
+const FONT_FAMILIES = {
+  title: "Archivo Black",
+  body: "Montserrat",
+  subtitle: "Roboto Serif"
+};
+
+const STATUS_MARKER_THEME: Record<
+  ReportStatus,
+  { label: string; outer: string; inner: string }
+> = {
+  scheduled: {
+    label: "We will begin",
+    outer: "#F6B833",
+    inner: "#FFF28A"
+  },
+  in_progress: {
+    label: "Still working on it",
+    outer: "#D96A00",
+    inner: "#F3B47A"
+  },
+  resolved: {
+    label: "Did it",
+    outer: "#9ED3EA",
+    inner: "#5B8FC9"
+  }
+};
 
 type Comment = {
   id: string;
@@ -92,7 +119,7 @@ const seedReports: Report[] = [
         createdAt: "2026-05-04T11:10:00.000Z"
       }
     ],
-    status: "open"
+    status: "scheduled"
   },
   {
     id: "2",
@@ -107,7 +134,7 @@ const seedReports: Report[] = [
     createdByNickname: "SeaWalk",
     votes: 13,
     comments: [],
-    status: "open"
+    status: "in_progress"
   }
 ];
 
@@ -128,6 +155,24 @@ function formatDateTime(value: string) {
 
 function readableProblemType(problemType: ProblemType) {
   return problemTypes.find((type) => type.value === problemType)?.label ?? "Other";
+}
+
+function markerSvgDataUri(status: ReportStatus, selected = false) {
+  const theme = STATUS_MARKER_THEME[status];
+  const stroke = selected ? "#173635" : "#ffffff";
+  const strokeWidth = selected ? 4 : 2.5;
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80">
+      <path d="M32 76C32 76 9 49.9 9 28C9 14.7 19.3 4 32 4s23 10.7 23 24c0 21.9-23 48-23 48Z" fill="${theme.outer}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linejoin="round"/>
+      <circle cx="32" cy="28" r="12" fill="${theme.inner}"/>
+    </svg>
+  `;
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function statusLabel(status: ReportStatus) {
+  return STATUS_MARKER_THEME[status].label;
 }
 
 export default function App() {
@@ -332,7 +377,8 @@ function HomeScreen({
   setScreen: (screen: Screen) => void;
   openReport: (reportId: string) => void;
 }) {
-  const openIssues = reports.filter((report) => report.status === "open").length;
+  const scheduledIssues = reports.filter((report) => report.status === "scheduled").length;
+  const inProgressIssues = reports.filter((report) => report.status === "in_progress").length;
   const resolvedIssues = reports.filter((report) => report.status === "resolved").length;
 
   return (
@@ -343,9 +389,9 @@ function HomeScreen({
       </Text>
 
       <View style={styles.statRow}>
-        <Stat label="Reports" value={reports.length} />
-        <Stat label="Open" value={openIssues} />
-        <Stat label="Resolved" value={resolvedIssues} />
+        <Stat label="Will begin" value={scheduledIssues} />
+        <Stat label="Working" value={inProgressIssues} />
+        <Stat label="Did it" value={resolvedIssues} />
       </View>
 
       <Pressable style={styles.primaryButton} onPress={() => setScreen("create")}>
@@ -402,7 +448,7 @@ function CreateReportScreen({
       createdByNickname: nickname,
       votes: 1,
       comments: [],
-      status: "open"
+      status: "scheduled"
     });
   }
 
@@ -422,7 +468,7 @@ function CreateReportScreen({
             onPress={() => choosePhoto(index)}
           >
             <Text style={styles.secondaryButtonText}>
-              {index === 0 ? "Take photo" : `Select ${index + 1}`}
+              {index === 0 ? "Take a photo" : `Select ${index + 1}`}
             </Text>
           </Pressable>
         ))}
@@ -483,13 +529,12 @@ function MapScreen({
             <Pressable
               key={report.id}
               style={[
-                styles.marker,
-                report.status === "resolved" && styles.resolvedMarker,
+                styles.mapMarkerButton,
                 { left: `${10 + (index * 23) % 70}%`, top: `${18 + (index * 17) % 54}%` }
               ]}
               onPress={() => openReport(report.id)}
             >
-              <Text style={styles.markerText}>{index + 1}</Text>
+              <StatusMapMarker status={report.status} size={44} count={index + 1} />
             </Pressable>
           ))}
         </View>
@@ -498,6 +543,37 @@ function MapScreen({
       {reports.map((report) => (
         <ReportCard key={report.id} report={report} onPress={() => openReport(report.id)} />
       ))}
+    </View>
+  );
+}
+
+function StatusMapMarker({
+  status,
+  size = 40,
+  selected = false,
+  count
+}: {
+  status: ReportStatus;
+  size?: number;
+  selected?: boolean;
+  count?: number | string;
+}) {
+  return (
+    <View
+      accessibilityLabel={`${statusLabel(status)} marker`}
+      style={[
+        styles.statusMarkerWrap,
+        selected && styles.statusMarkerSelected,
+        { width: size, height: size * 1.25 }
+      ]}
+    >
+      <Image
+        source={{ uri: markerSvgDataUri(status, selected) }}
+        style={styles.statusMarkerImage}
+      />
+      {count !== undefined && (
+        <Text style={[styles.statusMarkerCount, { top: size * 0.2 }]}>{count}</Text>
+      )}
     </View>
   );
 }
@@ -595,7 +671,7 @@ function ReportDetailScreen({
         <Pressable style={styles.secondaryButton} onPress={vote}>
           <Text style={styles.secondaryButtonText}>Vote ({report.votes})</Text>
         </Pressable>
-        {report.status === "open" ? (
+        {report.status !== "resolved" ? (
           <Pressable style={styles.primaryButtonSmall} onPress={markResolved}>
             <Text style={styles.primaryButtonText}>Mark resolved</Text>
           </Pressable>
@@ -664,8 +740,8 @@ function ResolvedReportScreen({
 
 function SummaryScreen({ reports }: { reports: Report[] }) {
   const summary = useMemo(() => {
-    const total = reports.length;
-    const open = reports.filter((report) => report.status === "open").length;
+    const scheduled = reports.filter((report) => report.status === "scheduled").length;
+    const inProgress = reports.filter((report) => report.status === "in_progress").length;
     const resolved = reports.filter((report) => report.status === "resolved").length;
     const mostCommonProblem = mostCommon(
       reports.map((report) => readableProblemType(report.problemType))
@@ -673,12 +749,12 @@ function SummaryScreen({ reports }: { reports: Report[] }) {
     const busiestArea = mostCommon(reports.map((report) => report.areaName));
 
     return {
-      total,
-      open,
+      scheduled,
+      inProgress,
       resolved,
       mostCommonProblem,
       busiestArea,
-      text: `Most reports this week are about ${mostCommonProblem.toLowerCase()}. The highest number of reports is in ${busiestArea}. Authorities appear to be resolving some issues, but several reports remain open.`
+      text: `Most reports this week are about ${mostCommonProblem.toLowerCase()}. The highest number of reports is in ${busiestArea}. Some issues are scheduled, some are being worked on, and completed work is marked did it.`
     };
   }, [reports]);
 
@@ -690,9 +766,9 @@ function SummaryScreen({ reports }: { reports: Report[] }) {
       </Text>
 
       <View style={styles.statRow}>
-        <Stat label="Total" value={summary.total} />
-        <Stat label="Open" value={summary.open} />
-        <Stat label="Resolved" value={summary.resolved} />
+        <Stat label="Will begin" value={summary.scheduled} />
+        <Stat label="Working" value={summary.inProgress} />
+        <Stat label="Did it" value={summary.resolved} />
       </View>
 
       <View style={styles.summaryBox}>
@@ -733,15 +809,16 @@ function ProfileScreen({
 }
 
 function StatusBadge({ status }: { status: ReportStatus }) {
+  const theme = STATUS_MARKER_THEME[status];
   return (
-    <View style={[styles.badge, status === "resolved" && styles.resolvedBadge]}>
+    <View style={[styles.badge, { backgroundColor: theme.inner }]}>
       <Text
         style={[
           styles.badgeText,
-          status === "resolved" && styles.resolvedBadgeText
+          { color: status === "resolved" ? theme.outer : "#765400" }
         ]}
       >
-        {status}
+        {theme.label}
       </Text>
     </View>
   );
@@ -782,11 +859,13 @@ const styles = StyleSheet.create({
   },
   appTitle: {
     color: "#ffffff",
+    fontFamily: FONT_FAMILIES.title,
     fontSize: 24,
     fontWeight: "800"
   },
   cityLabel: {
     color: "#cbe7e2",
+    fontFamily: FONT_FAMILIES.subtitle,
     fontSize: 13,
     marginTop: 3
   },
@@ -798,28 +877,33 @@ const styles = StyleSheet.create({
     gap: 14
   },
   title: {
+    fontFamily: FONT_FAMILIES.title,
     fontSize: 28,
     fontWeight: "800",
     color: "#173635"
   },
   sectionTitle: {
+    fontFamily: FONT_FAMILIES.subtitle,
     fontSize: 19,
     fontWeight: "800",
     color: "#173635",
     marginTop: 6
   },
   text: {
+    fontFamily: FONT_FAMILIES.body,
     color: "#35514f",
     fontSize: 16,
     lineHeight: 23
   },
   label: {
+    fontFamily: FONT_FAMILIES.subtitle,
     color: "#173635",
     fontSize: 14,
     fontWeight: "800",
     marginTop: 4
   },
   input: {
+    fontFamily: FONT_FAMILIES.body,
     borderWidth: 1,
     borderColor: "#c9d9d5",
     backgroundColor: "#ffffff",
@@ -853,6 +937,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: "#ffffff",
+    fontFamily: FONT_FAMILIES.body,
     fontWeight: "800",
     fontSize: 16
   },
@@ -871,6 +956,7 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: "#0b5d5e",
+    fontFamily: FONT_FAMILIES.body,
     fontWeight: "800"
   },
   smallButton: {
@@ -881,6 +967,7 @@ const styles = StyleSheet.create({
   },
   smallButtonText: {
     color: "#0b5d5e",
+    fontFamily: FONT_FAMILIES.body,
     fontWeight: "800"
   },
   grid: {
@@ -900,6 +987,7 @@ const styles = StyleSheet.create({
   },
   mockLoginText: {
     color: "#173635",
+    fontFamily: FONT_FAMILIES.body,
     fontWeight: "700"
   },
   statRow: {
@@ -916,11 +1004,13 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: "#0b5d5e",
+    fontFamily: FONT_FAMILIES.title,
     fontSize: 25,
     fontWeight: "900"
   },
   statLabel: {
     color: "#52706c",
+    fontFamily: FONT_FAMILIES.body,
     marginTop: 3
   },
   row: {
@@ -947,6 +1037,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     color: "#35514f",
+    fontFamily: FONT_FAMILIES.body,
     fontWeight: "700"
   },
   activeChipText: {
@@ -988,17 +1079,20 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     color: "#173635",
+    fontFamily: FONT_FAMILIES.subtitle,
     fontSize: 18,
     fontWeight: "800",
     flex: 1
   },
   cardText: {
     color: "#35514f",
+    fontFamily: FONT_FAMILIES.body,
     fontSize: 15,
     lineHeight: 21
   },
   metaText: {
     color: "#6b817e",
+    fontFamily: FONT_FAMILIES.body,
     fontSize: 13,
     lineHeight: 19
   },
@@ -1011,15 +1105,10 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: "#765400",
+    fontFamily: FONT_FAMILIES.body,
     fontWeight: "800",
     textTransform: "uppercase",
     fontSize: 12
-  },
-  resolvedBadge: {
-    backgroundColor: "#dff1ec"
-  },
-  resolvedBadgeText: {
-    color: "#0b5d5e"
   },
   mapPlaceholder: {
     height: 260,
@@ -1032,11 +1121,13 @@ const styles = StyleSheet.create({
   },
   mapTitle: {
     color: "#173635",
+    fontFamily: FONT_FAMILIES.subtitle,
     fontWeight: "900",
     fontSize: 20
   },
   mapText: {
     color: "#52706c",
+    fontFamily: FONT_FAMILIES.body,
     marginTop: 4
   },
   markerRow: {
@@ -1044,22 +1135,27 @@ const styles = StyleSheet.create({
     flex: 1,
     marginTop: 8
   },
-  marker: {
+  mapMarkerButton: {
     position: "absolute",
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#e34d3b",
     alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 3,
-    borderColor: "#ffffff"
+    justifyContent: "center"
   },
-  resolvedMarker: {
-    backgroundColor: "#0b8f71"
+  statusMarkerWrap: {
+    alignItems: "center",
+    justifyContent: "center"
   },
-  markerText: {
-    color: "#ffffff",
+  statusMarkerSelected: {
+    transform: [{ scale: 1.08 }]
+  },
+  statusMarkerImage: {
+    width: "100%",
+    height: "100%"
+  },
+  statusMarkerCount: {
+    position: "absolute",
+    color: "#173635",
+    fontFamily: FONT_FAMILIES.title,
+    fontSize: 11,
     fontWeight: "900"
   },
   comment: {
@@ -1072,10 +1168,12 @@ const styles = StyleSheet.create({
   },
   commentName: {
     color: "#173635",
+    fontFamily: FONT_FAMILIES.subtitle,
     fontWeight: "800"
   },
   commentText: {
     color: "#35514f",
+    fontFamily: FONT_FAMILIES.body,
     fontSize: 15
   },
   summaryBox: {
@@ -1087,12 +1185,14 @@ const styles = StyleSheet.create({
   },
   summaryText: {
     color: "#173635",
+    fontFamily: FONT_FAMILIES.body,
     fontSize: 17,
     lineHeight: 25,
     fontWeight: "700"
   },
   successText: {
     color: "#0b6b54",
+    fontFamily: FONT_FAMILIES.body,
     fontWeight: "800"
   },
   tabs: {
@@ -1119,6 +1219,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     color: "#52706c",
+    fontFamily: FONT_FAMILIES.body,
     fontWeight: "800",
     fontSize: 13
   },

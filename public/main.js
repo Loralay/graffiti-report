@@ -6,6 +6,24 @@ const problemTypes = [
   ["other", "Other"]
 ];
 
+const STATUS_MARKER_THEME = {
+  scheduled: {
+    label: "We will begin",
+    outer: "#F6B833",
+    inner: "#FFF28A"
+  },
+  in_progress: {
+    label: "Still working on it",
+    outer: "#D96A00",
+    inner: "#F3B47A"
+  },
+  resolved: {
+    label: "Did it",
+    outer: "#9ED3EA",
+    inner: "#5B8FC9"
+  }
+};
+
 const mockPhotos = [
   "assets/demo-graffiti.svg",
   "assets/demo-rubbish.svg",
@@ -71,7 +89,7 @@ let reports = [
         createdAt: "2026-05-04T11:10:00.000Z"
       }
     ],
-    status: "open"
+    status: "scheduled"
   },
   {
     id: "2",
@@ -87,7 +105,7 @@ let reports = [
     votes: 13,
     priority: "high",
     comments: [],
-    status: "open"
+    status: "in_progress"
   },
   {
     id: "3",
@@ -110,7 +128,7 @@ let reports = [
         createdAt: "2026-05-02T16:05:00.000Z"
       }
     ],
-    status: "open"
+    status: "scheduled"
   },
   {
     id: "4",
@@ -135,6 +153,15 @@ const storedReports = localStorage.getItem("graffitiReportReports");
 if (storedReports) {
   try {
     reports = JSON.parse(storedReports);
+    reports = reports.map((report, index) => ({
+      ...report,
+      status:
+        report.status === "open"
+          ? index % 2 === 0
+            ? "scheduled"
+            : "in_progress"
+          : report.status
+    }));
   } catch {
     localStorage.removeItem("graffitiReportReports");
   }
@@ -178,8 +205,13 @@ function formatDateTime(value) {
   })}`;
 }
 
+function statusLabel(status) {
+  return STATUS_MARKER_THEME[status]?.label ?? status;
+}
+
 function badge(status) {
-  return `<span class="badge ${status === "resolved" ? "resolved" : ""}">${status}</span>`;
+  const theme = STATUS_MARKER_THEME[status] ?? STATUS_MARKER_THEME.scheduled;
+  return `<span class="badge" style="--badge-bg:${theme.inner}; --badge-color:${status === "resolved" ? theme.outer : "#765400"}">${theme.label}</span>`;
 }
 
 function priorityBadge(priority = "medium") {
@@ -231,6 +263,39 @@ function palermoMapTiles() {
     }
   }
   return tiles.join("");
+}
+
+function statusMarkerSvg(status, options = {}) {
+  const theme = STATUS_MARKER_THEME[status] ?? STATUS_MARKER_THEME.scheduled;
+  const count = options.count ? String(options.count) : "";
+  const stroke = options.selected ? "#173635" : "#ffffff";
+  const strokeWidth = options.selected ? 4 : 2.5;
+
+  return `
+    <svg class="status-marker-svg" viewBox="0 0 64 80" aria-hidden="true">
+      <path d="M32 76C32 76 9 49.9 9 28C9 14.7 19.3 4 32 4s23 10.7 23 24c0 21.9-23 48-23 48Z"
+        fill="${theme.outer}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linejoin="round"/>
+      <circle cx="32" cy="28" r="12" fill="${theme.inner}"/>
+      ${
+        count
+          ? `<text x="32" y="32" text-anchor="middle" dominant-baseline="middle" class="status-marker-count">${count}</text>`
+          : ""
+      }
+    </svg>
+  `;
+}
+
+function statusMarkerLegend() {
+  return Object.entries(STATUS_MARKER_THEME)
+    .map(
+      ([status, theme]) => `
+        <span class="marker-legend-item">
+          ${statusMarkerSvg(status)}
+          <span>${theme.label}</span>
+        </span>
+      `
+    )
+    .join("");
 }
 
 function getUserReports() {
@@ -329,7 +394,8 @@ function renderLogin() {
 }
 
 function renderHome() {
-  const open = reports.filter((report) => report.status === "open").length;
+  const scheduled = reports.filter((report) => report.status === "scheduled").length;
+  const inProgress = reports.filter((report) => report.status === "in_progress").length;
   const resolved = reports.filter((report) => report.status === "resolved").length;
   const highPriority = reports.filter((report) => report.priority === "high").length;
 
@@ -341,9 +407,9 @@ function renderHome() {
         <p>Report visible public issues, confirm what neighbors see, and track city improvements.</p>
       </section>
       <div class="stats">
-        <div class="stat"><strong>${reports.length}</strong><span>Reports</span></div>
-        <div class="stat"><strong>${open}</strong><span>Open</span></div>
-        <div class="stat"><strong>${resolved}</strong><span>Resolved</span></div>
+        <div class="stat"><strong>${scheduled}</strong><span>We will begin</span></div>
+        <div class="stat"><strong>${inProgress}</strong><span>Still working on it</span></div>
+        <div class="stat"><strong>${resolved}</strong><span>Did it</span></div>
       </div>
       <div class="action-grid">
         <button class="primary" onclick="go('create')">Create a report</button>
@@ -361,7 +427,7 @@ function renderHome() {
           <button class="activity-item" onclick="openReport('${report.id}')">
             <span>${readableProblemType(report.problemType)}</span>
             <strong>${report.areaName}</strong>
-            <small>${report.status} · ${report.votes} votes</small>
+            <small>${statusLabel(report.status)} · ${report.votes} votes</small>
           </button>
         `
           )
@@ -377,10 +443,12 @@ function renderCreate() {
   screen.innerHTML = `
     <form id="reportForm" class="stack">
       <h2>Create report</h2>
-      <p>Photo selection is simulated. The location is randomized around Palermo for the demo.</p>
+      <p>Take a camera photo or use a demo photo. The location is randomized around Palermo for the demo.</p>
       <img id="photoPreview" class="preview" src="${mockPhotos[0]}" alt="Selected report preview" />
+      <input id="cameraInput" class="camera-input" type="file" accept="image/*" capture="environment" />
       <div class="row">
-        <button class="secondary" type="button" data-photo="0">Take photo</button>
+        <button class="secondary camera-button" type="button" id="cameraButton">Take a photo</button>
+        <button class="secondary" type="button" data-photo="0">Graffiti photo</button>
         <button class="secondary" type="button" data-photo="1">Rubbish photo</button>
         <button class="secondary" type="button" data-photo="2">Pothole photo</button>
       </div>
@@ -405,6 +473,23 @@ function renderCreate() {
 
   let photoUri = mockPhotos[0];
   let selectedLocation = null;
+  const cameraInput = document.querySelector("#cameraInput");
+  document.querySelector("#cameraButton").addEventListener("click", () => {
+    cameraInput.click();
+  });
+  cameraInput.addEventListener("change", () => {
+    const [file] = cameraInput.files;
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      photoUri = String(reader.result);
+      document.querySelector("#photoPreview").src = photoUri;
+      document.querySelector("#privacyMessage").textContent = "Camera photo added. Privacy blur applied";
+    });
+    reader.readAsDataURL(file);
+  });
   document.querySelectorAll("[data-photo]").forEach((button) => {
     button.addEventListener("click", () => {
       const result = applyPrivacyBlur(mockPhotos[Number(button.dataset.photo)]);
@@ -442,7 +527,7 @@ function renderCreate() {
       votes: 1,
       priority,
       comments: [],
-      status: "open"
+      status: "scheduled"
     };
     reports = [report, ...reports];
     saveReports();
@@ -463,11 +548,11 @@ function renderReports() {
       <section class="filter-panel">
         <input id="reportSearch" placeholder="Search area, type, or description" value="${reportFilters.query}" />
         <div class="chip-row">
-          ${["all", "open", "resolved"]
+          ${["all", "scheduled", "in_progress", "resolved"]
             .map(
               (status) => `
             <button class="filter-chip ${reportFilters.status === status ? "active" : ""}"
-              onclick="setStatusFilter('${status}')">${status}</button>
+              onclick="setStatusFilter('${status}')">${status === "all" ? "All" : statusLabel(status)}</button>
           `
             )
             .join("")}
@@ -496,16 +581,18 @@ function renderReports() {
           <strong>Palermo geolocator</strong>
           <span>${visibleReports.length} visible report markers</span>
         </div>
+        <div class="marker-legend">${statusMarkerLegend()}</div>
         ${visibleReports
           .map(
             (report, index) => {
               const position = mapPosition(report);
               return `
-            <button class="marker ${report.status === "resolved" ? "resolved" : ""}"
+            <button class="marker"
               title="${readableProblemType(report.problemType)} in ${report.areaName}"
+              aria-label="${statusLabel(report.status)}: ${readableProblemType(report.problemType)} in ${report.areaName}"
               style="left:${position.left}%; top:${position.top}%"
               onclick="openReport('${report.id}')">
-              <span>${index + 1}</span>
+              ${statusMarkerSvg(report.status, { count: index + 1 })}
             </button>
           `;
             }
@@ -550,7 +637,7 @@ function renderDetail() {
       <div class="row">
         <button class="secondary" onclick="vote()">Vote (${report.votes})</button>
         ${
-          report.status === "open"
+          report.status !== "resolved"
             ? `<button class="primary" onclick="markResolved()">Mark resolved</button>`
             : `<button class="primary" onclick="go('resolved')">View resolved</button>`
         }
@@ -609,7 +696,7 @@ function renderResolved() {
 
 function renderSummary() {
   const total = reports.length;
-  const open = reports.filter((report) => report.status === "open").length;
+  const inProgress = reports.filter((report) => report.status === "in_progress").length;
   const resolved = reports.filter((report) => report.status === "resolved").length;
   const commonProblem = mostCommon(reports.map((report) => readableProblemType(report.problemType)));
   const busiestArea = mostCommon(reports.map((report) => report.areaName));
@@ -620,11 +707,11 @@ function renderSummary() {
       <p>This uses simple JavaScript counts, not real AI.</p>
       <div class="stats">
         <div class="stat"><strong>${total}</strong><span>Total</span></div>
-        <div class="stat"><strong>${open}</strong><span>Open</span></div>
-        <div class="stat"><strong>${resolved}</strong><span>Resolved</span></div>
+        <div class="stat"><strong>${inProgress}</strong><span>Still working on it</span></div>
+        <div class="stat"><strong>${resolved}</strong><span>Did it</span></div>
       </div>
       <div class="summary-box">
-        Most reports this week are about ${commonProblem.toLowerCase()}. The highest number of reports is in ${busiestArea}. Authorities appear to be resolving some issues, but several reports remain open.
+        Most reports this week are about ${commonProblem.toLowerCase()}. The highest number of reports is in ${busiestArea}. Workflows now show what will begin, what is still being worked on, and what is done.
       </div>
       <label>Most common problem</label>
       <p>${commonProblem}</p>
@@ -636,7 +723,7 @@ function renderSummary() {
 
 function renderProfile() {
   const userReports = getUserReports();
-  const userOpen = userReports.filter((report) => report.status === "open").length;
+  const userActive = userReports.filter((report) => report.status !== "resolved").length;
   const userResolved = userReports.filter((report) => report.status === "resolved").length;
   const userComments = reports.reduce(
     (total, report) =>
@@ -669,8 +756,8 @@ function renderProfile() {
           <p>Palermo</p>
         </div>
         <div class="summary-box">
-          <label>Open reports</label>
-          <p>${userOpen}</p>
+          <label>Active reports</label>
+          <p>${userActive}</p>
         </div>
         <div class="summary-box">
           <label>Resolved reports</label>
